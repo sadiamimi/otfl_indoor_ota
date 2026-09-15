@@ -57,10 +57,13 @@ if [ "$NEED_BUILD" = "yes" ]; then
     sudo ldconfig
 fi
 
-# FPGA images. The default image directory ships empty and the downloader
-# needs root to write into it.
-sudo uhd_images_downloader -t x310 || true
-sudo uhd_images_downloader -t b200 || true
+# FPGA images and firmware. The default image directory ships empty and the
+# downloader needs root to write into it.
+#
+# Download the full set rather than filtering with -t: `-t b200` fetches
+# usrp_b200_fpga.bin but NOT usrp_b200_fw.hex, and without that firmware the
+# B210 never enumerates ("Could not find the image 'usrp_b200_fw.hex'").
+sudo uhd_images_downloader || true
 
 # USB permissions for the B210.
 sudo cp "$(dirname "$(dirname "$(which uhd_find_devices)")")"/lib/uhd/utils/uhd-usrp.rules \
