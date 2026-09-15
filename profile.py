@@ -418,7 +418,10 @@ request = pc.makeRequestRSpec()
 
 # Shared experiment LAN. Carries model distribution, E2, Flower and the NG
 # interface between the gNodeB and the core.
-cn_link = request.LAN("cn-link")
+# request.Link, not request.LAN: srs-indoor-ota uses a Link here, and a LAN
+# makes the mapper program switch VLANs that can claim the same 10 GbE port
+# the X310 is reached through, leaving the radio unreachable.
+cn_link = request.Link("cn-link")
 cn_link.setNoBandwidthShaping()
 if params.multiplex_lans:
     cn_link.link_multiplexing = True
