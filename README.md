@@ -13,8 +13,7 @@ Implements §5A of the research plan.
 |---|---|---|
 | X310 + paired d740 | `ota-x310-N-comp`, `ota-x310-N-sdr` | gNodeB: analog aggregation RX, digital gNB |
 | NUCs ×1–4 | `ota-nucN-ue` | UEs for **both** arms: B210 (analog) + COTS modem (digital) |
-| d430 | `cn5g` | Open5GS 5G core |
-| d430 (optional) | `ctrl` | Radio-free control node: RIC, Flower server, orchestration |
+| d430 | `cn5g` | Radio-free control node: Open5GS 5G core, plus FlexRIC and the Flower server when `install_ric` is set |
 
 Default is `ota-x310-2` — one of the two units with antennas on **both**
 channels. `ota-x310-1` and `-4` have Channel 0 antennas only; their second
@@ -55,9 +54,10 @@ general compute pool. Only X310-paired compute, the CN and the control node do.
 |---|---|---|---|
 | **NUCs only** (no X310, no CN) | 0 | 0 | **0** |
 | Minimal (1 X310, no CN) | 1 | 0 | **1** |
-| **Default** (1 X310, 4 NUCs, CN) | 1 | 1 | **2** |
-| + control node | 1 | 2 | **3** |
-| Simultaneous (2 X310s + control) | 2 | 2 | **4** |
+| **Default** (1 X310, 4 NUCs, control node) | 1 | 1 | **2** |
+| Default + RIC | 1 | 1 | **2** |
+| RIC split onto its own node | 1 | 2 | **3** |
+| Simultaneous (2 X310s) | 2 | 1 | **3** |
 
 Four NUCs cost zero d-nodes, so compute is the binding constraint, not radios.
 
@@ -77,7 +77,9 @@ aggregation.
 - **X310 radios** — 0–4. Zero gives the NUC-only topology; more than one gives
   the simultaneous topology and needs one compute node each.
 - **NUCs** — 1–4.
-- **Control node** — off by default.
+- **`install_ric`** — adds FlexRIC and the Flower server to the control node.
+  Off by default; no extra node.
+- **`separate_control_node`** (advanced) — splits the RIC onto its own node.
 - **Install toggles** — SDR stack, srsRAN, ML stack.
 - **`srsran_commit_hash`** — defaults to `release_25_10`.
 - **`ue_image`** (advanced) — point at a custom snapshot with the stack
