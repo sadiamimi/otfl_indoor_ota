@@ -68,11 +68,11 @@ cu_cp:
 
 ru_sdr:
   device_driver: uhd
-  device_args: type=x300
+  device_args: type=x300,send_frame_size=4000,recv_frame_size=4000,num_recv_frames=256,num_send_frames=256
   tx_gain: 31
   rx_gain: 25
-  srate: 11.52
-  lo_offset: 20
+  srate: 23.04
+  lo_offset: 22
   clock: ${CLOCK_SOURCE}
   sync: ${CLOCK_SOURCE}
   time_alignment_calibration: 0
@@ -80,9 +80,14 @@ ru_sdr:
 cell_cfg:
   # 3450 MHz centre: inside the approved 3430-3470 MHz range, and the same
   # centre the analog arm uses so frequency is not a confound between arms.
+  #
+  # 20 MHz, not 10: the RM500Q-GL never acquires a 10 MHz / SCS 30 cell
+  # (nof_crbs 24) -- it reports MCC 0, MNC 0 and the gNB sees zero PRACH.
+  # 20 MHz (nof_crbs 51) and 40 MHz (106) both attach. 20 is the narrowest
+  # verified setting and the easiest for a B210 over USB3 to match.
   dl_arfcn: 630000
   band: 78
-  channel_bandwidth_MHz: 10
+  channel_bandwidth_MHz: 20
   common_scs: 30
   nof_antennas_dl: 1
   nof_antennas_ul: 1
@@ -122,9 +127,9 @@ pcap:
 EOF
 
 # 40 MHz variant, for the clearly-labelled secondary digital-only result.
-sudo sed -e 's/^  srate: 11.52/  srate: 46.08/' \
-         -e 's/^  lo_offset: 20/  lo_offset: 45/' \
-         -e 's/^    channel_bandwidth_MHz: 10/    channel_bandwidth_MHz: 40/' \
+sudo sed -e 's/^  srate: 23.04/  srate: 46.08/' \
+         -e 's/^  lo_offset: 22/  lo_offset: 45/' \
+         -e 's/^  channel_bandwidth_MHz: 20/  channel_bandwidth_MHz: 40/' \
          "$ETCDIR/gnb_x310_n78_e2.yml" | \
     sudo tee "$ETCDIR/gnb_x310_n78_40mhz_e2.yml" > /dev/null
 
