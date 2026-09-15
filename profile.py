@@ -32,78 +32,80 @@ import geni.rspec.emulab.spectrum as spectrum
 tourDescription = """
 ### OTA-FL: analog and digital federated learning in the Indoor OTA Lab
 
-Allocates the POWDER Indoor OTA Lab for over-the-air federated learning
-experiments with two comparable arms:
+Allocates the POWDER Indoor OTA Lab for over-the-air federated learning with
+two arms:
 
 * **Analog arm** - GNU Radio flowgraphs, B210 SDRs on the NUCs transmitting
-  superposed model updates to an X310 acting as the aggregation receiver.
+  superposed model updates to an X310 aggregation receiver.
 * **Digital arm** - srsRAN Project 5G gNodeB on the same X310, Open5GS core,
-  and the COTS 5G modems attached to the same NUCs.
+  and the COTS 5G modems on the same NUCs.
 
-Both arms run on the same nodes in the same room, so the comparison between
-them is not confounded by hardware or geometry.
-
-Nothing that claims the radio is started automatically: the srsRAN gNodeB and
-the GNU Radio flowgraph both want exclusive access to the X310, so each arm
-is started manually.
+Neither radio stack is started automatically.
 """
 
 tourInstructions = """
-Startup scripts are still running when the experiment becomes ready. Watch the
-"Startup" column in the List View and wait for every compute node to show
-"Finished" before proceeding.
+Wait until every compute node shows "Finished" in the Startup column of the
+List View before proceeding.
 
-#### 1. Verify the testbed
+#### 1. Verify the radios
 
-On the gNodeB compute node (`*-gnuradio-comp`):
+On the gNodeB compute node (`ota-x310-N-comp`):
 
 ```
 uhd_find_devices
 ```
 
-On each NUC (`ota-nucN-ue`), confirm both radios are present:
+On each NUC (`ota-nucN-ue`):
 
 ```
-uhd_find_devices          # the B210
-ls /dev/ttyUSB*           # the COTS modem
+uhd_find_devices          # B210
+ls /dev/ttyUSB*           # COTS modem
 ```
 
-#### 2. Clock source (the impairment treatment)
-
-Both `clock_source` and `time_source` are left at the profile parameter value
-and are switchable at runtime. Note that the X310's `ref_locked` sensor reads
-`True` under *both* `internal` and `external` and must not be used as evidence
-that an external reference is present. Verify with a frequency measurement
-instead:
+#### 2. Check the clock source
 
 ```
 /local/repository/bin/check-clock.py
 ```
 
+`clock_source` and `time_source` are switchable at runtime. The X310's
+`ref_locked` sensor reads `True` under both `internal` and `external`, so use
+the measurement above rather than the sensor.
+
 #### 3. Digital arm
 
-On the CN node the Open5GS services run as system services (`systemctl status
-open5gs-*`). Start the gNodeB on the gNodeB compute node:
+Open5GS runs as a system service on the CN node (`systemctl status open5gs-*`).
+
+Start the gNodeB:
 
 ```
-sudo /var/tmp/srsRAN_Project/build/apps/gnb/gnb \\
-    -c /var/tmp/etc/srsran/gnb_x310_n78_e2.yml
+sudo /var/tmp/srsRAN_Project/build/apps/gnb/gnb -c /var/tmp/etc/srsran/gnb_x310_n78_e2.yml
 ```
 
-Then bring up a COTS UE on a NUC:
+Bring up a COTS UE on a NUC:
 
 ```
 sudo quectel-CM -s internet -4
-# in another session
+```
+
+In another session on the same node:
+
+```
 sudo sh -c "chat -t 1 -sv '' AT OK 'AT+CFUN=1' OK < /dev/ttyUSB2 > /dev/ttyUSB2"
+```
+
+Verify connectivity:
+
+```
+ping 10.45.0.1
 ```
 
 #### 4. Analog arm
 
-Stop the gNodeB first - it holds the X310. Then run the GNU Radio flowgraph
-on the gNodeB compute node (receiver) and on the NUCs (transmitters).
+Stop the gNodeB, then run the GNU Radio flowgraph on the gNodeB compute node
+(receiver) and on the NUCs (transmitters).
 
-#### 5. Frequency discipline
+#### 5. Frequency
 
 Transmit only inside the approved frequency range for this reservation.
 Transmissions are not automatically policed.
