@@ -40,10 +40,19 @@ approved lower edge.
 | Sequential (default) | 3445–3455 | 3445–3455 | C1, C2, C3. One arm at a time on one X310. Frequency cannot confound the comparison. |
 | Simultaneous | 3432.5–3442.5 | 3457.5–3467.5 | C4, coexistence. Needs two X310s and a second server-class node. |
 
-Both arms default to **10 MHz**, not 40: it keeps PRB-slot accounting
-comparable to the baseline paper, and a B210 over USB3 cannot reliably sustain
-40 MHz. A 40 MHz digital-only config is staged alongside as
-`gnb_x310_n78_40mhz_e2.yml`.
+Both arms default to **20 MHz**. 10 MHz was the original choice, to keep
+PRB-slot accounting comparable to the baseline paper, but **the RM500Q-GL never
+acquires a 10 MHz / SCS 30 cell** — it reports `MCC: 0, MNC: 0` and the gNB
+sees zero PRACH. Measured:
+
+| Bandwidth | `nof_crbs` | `srate` | UE attach |
+|---|---|---|---|
+| 10 MHz | 24 | 15.36 | **no** |
+| 20 MHz | 51 | 23.04 | **yes** |
+| 40 MHz | 106 | 46.08 | **yes** (all four UEs) |
+
+20 MHz is the narrowest verified setting and the easiest for a B210 over USB3
+to match. A 40 MHz config is staged alongside as `gnb_x310_n78_40mhz_e2.yml`.
 
 ## Server-class ("d") node cost
 
@@ -130,12 +139,14 @@ reproduce it.
 
 Per plan §5A.8, the profile is done when, in one instantiation:
 
-- [ ] `uhd_find_devices` sees the B210 on every NUC and the X310 from the gNB node
-- [ ] the modem still enumerates on `/dev/ttyUSB0-3` on every NUC
+- [x] `uhd_find_devices` sees the B210 on every NUC and the X310 from the gNB node
+- [x] the modem still enumerates on `/dev/ttyUSB0-3` on every NUC
 - [ ] `clock_source` flips to `external` and a 30 s measurement distinguishes it
-      from `internal` (not `ref_locked`)
-- [ ] `gnb --dryrun` validates against the 25.x schema
-- [ ] four COTS UEs attach simultaneously
+      from `internal` (not `ref_locked`) — needs a second radio; the
+      host-referenced method cannot resolve it
+- [x] `gnb --dryrun` validates against the 25.x schema
+- [x] **four COTS UEs attach simultaneously** — 10.45.0.2–.5, 0% packet loss,
+      4 registrations at the AMF
 - [ ] the GNU Radio flowgraph opens the X310 after srsRAN releases it
 
 For the simultaneous topology, additionally: two X310s hold centres 15 MHz
@@ -143,14 +154,15 @@ apart without desensitizing each other, measured at the receiver.
 
 ## Status
 
-Validated offline against Emulab's `geni-lib`: the profile executes, produces
-well-formed rspec, emits the `emulab:spectrum` request, and its parameter
-validation rejects duplicate radios and out-of-band frequencies. The gNodeB
-config's **schema** was validated against a real srsRAN 25.10 binary; the
-ARFCN/bandwidth/clock values in this profile have not been run on hardware yet.
+**Verified on hardware** (`ota-x310-3`, 2026-09-15). A fresh instantiation
+provisions unattended — the startup chain completes on every node, the X310 and
+all four B210s enumerate, and the digital arm runs end to end: srsRAN gNodeB up,
+NG established to Open5GS, **all four COTS UEs attached simultaneously**
+(10.45.0.2–.5) with 0% packet loss to the core.
 
-**Not yet tested on hardware.** Work through the acceptance test on first
-instantiation.
+Outstanding: the clock-source check needs a second radio (a host-referenced
+measurement cannot resolve the two sources), and the GNU Radio flowgraph has
+not yet been run against the X310.
 
 ## Provenance
 
