@@ -274,10 +274,11 @@ pc.defineStructParameter(
     name="x310_radios",
     description="X310 radios to allocate. The first is the primary gNodeB / "
                 "aggregation receiver. Prefer ota-x310-2 or -3: they have "
-                "antennas on both channels.",
+                "antennas on both channels. Set to zero for a NUC-only "
+                "topology that consumes no server-class nodes.",
     defaultValue=[{"node_id": "ota-x310-2"}],
     multiValue=True,
-    min=1,
+    min=0,
     max=4,
     members=[
         portal.Parameter(
@@ -358,16 +359,41 @@ for fr in params.freq_ranges:
         pc.reportError(portal.ParameterError(
             "Frequency range must be at least 1 MHz wide.", ["freq_ranges"]))
 
+if params.install_srsran and len(params.x310_radios) == 0:
+    pc.reportWarning(portal.ParameterWarning(
+        "srsRAN was requested but no X310 was selected; there is nothing to "
+        "run it on.", ["x310_radios"]))
+
 if params.install_srsran and not params.include_cn:
     pc.reportWarning(portal.ParameterWarning(
         "srsRAN is being installed but no core network node was requested. The "
         "digital arm needs the CN node.", ["include_cn"]))
 
-# The simultaneous topology needs one compute node per X310.
-if len(params.x310_radios) > 1:
+if len(params.x310_radios) == 0 and len(params.ue_nodes) == 0:
+    pc.reportError(portal.ParameterError(
+        "Select at least one X310 or one NUC.", ["x310_radios", "ue_nodes"]))
+
+# Server-class ("d") nodes are the scarce resource: one per X310, plus the CN
+# and control nodes. X310s and NUCs themselves are bound to named components
+# and do not draw from the general pool.
+d_nodes = len(params.x310_radios)
+if params.include_cn:
+    d_nodes += 1
+if params.include_control_node:
+    d_nodes += 1
+
+if d_nodes == 0:
     pc.reportWarning(portal.ParameterWarning(
-        "Each X310 gets its own paired compute node. Confirm your reservation "
-        "covers {} server-class nodes.".format(len(params.x310_radios)),
+        "NUC-only topology: no server-class nodes are requested. The B210s are "
+        "available for the analog arm, but there is no X310 receiver and no 5G "
+        "core.", ["x310_radios"]))
+elif d_nodes > 2:
+    pc.reportWarning(portal.ParameterWarning(
+        "This topology needs {} server-class nodes ({} X310 compute"
+        "{}{}). Confirm your reservation covers them.".format(
+            d_nodes, len(params.x310_radios),
+            " + CN" if params.include_cn else "",
+            " + control" if params.include_control_node else ""),
         ["x310_radios"]))
 
 pc.verifyParameters()
