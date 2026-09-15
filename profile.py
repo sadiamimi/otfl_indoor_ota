@@ -44,8 +44,8 @@ Both arms run on the same nodes in the same room, so the comparison between
 them is not confounded by hardware or geometry.
 
 Nothing that claims the radio is started automatically: the srsRAN gNodeB and
-the GNU Radio flowgraph both want exclusive access to the X310, so you start
-whichever arm you are running by hand.
+the GNU Radio flowgraph both want exclusive access to the X310, so each arm
+is started manually.
 """
 
 tourInstructions = """
@@ -100,12 +100,12 @@ sudo sh -c "chat -t 1 -sv '' AT OK 'AT+CFUN=1' OK < /dev/ttyUSB2 > /dev/ttyUSB2"
 
 #### 4. Analog arm
 
-Stop the gNodeB first - it holds the X310. Then run your GNU Radio flowgraph
+Stop the gNodeB first - it holds the X310. Then run the GNU Radio flowgraph
 on the gNodeB compute node (receiver) and on the NUCs (transmitters).
 
 #### 5. Frequency discipline
 
-Transmit only inside the frequency range you requested and had approved.
+Transmit only inside the approved frequency range for this reservation.
 Transmissions are not automatically policed.
 """
 
@@ -390,7 +390,7 @@ if d_nodes == 0:
 elif d_nodes > 2:
     pc.reportWarning(portal.ParameterWarning(
         "This topology needs {} server-class nodes ({} X310 compute"
-        "{}{}). Confirm your reservation covers them.".format(
+        "{}{}). Confirm the reservation covers them.".format(
             d_nodes, len(params.x310_radios),
             " + CN" if params.include_cn else "",
             " + control" if params.include_control_node else ""),

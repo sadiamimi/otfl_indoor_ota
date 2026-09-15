@@ -65,8 +65,9 @@ Four NUCs cost zero d-nodes, so compute is the binding constraint, not radios.
 arm, the impairment sweep, the error decomposition, the whole week-14 preprint
 — needs no 5G stack and no X310-paired server. Set the X310 count to zero and
 `include_cn` off, and the experiment consumes no server-class nodes at all,
-which is the easiest thing to get scheduled. You lose the X310 receiver, so
-this is for B210-to-B210 work and NUC-local development, not full aggregation.
+which is the easiest thing to get scheduled. There is no X310 receiver in this
+mode, so it suits B210-to-B210 work and NUC-local development rather than full
+aggregation.
 
 ## Parameters
 
@@ -109,8 +110,8 @@ a config using the **25.x schema**, where AMF settings live under `cu_cp` and
 ## Nothing auto-starts the radio
 
 srsRAN and the GNU Radio flowgraph both want exclusive access to the X310.
-Only one can hold it. The profile installs both and starts neither; you
-sequence them.
+Only one can hold it. The profile installs both and starts neither; sequencing
+is left to the experimenter.
 
 ## Verifying the clock
 
