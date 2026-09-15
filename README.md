@@ -73,8 +73,8 @@ this is for B210-to-B210 work and NUC-local development, not full aggregation.
 - **`clock_source`** — `external` (Octoclock) or `internal`. Exposed, never
   baked: the impairment treatment depends on switching it mid-session.
 - **Frequency ranges** — multi-valued, validated.
-- **X310 radios** — 1–4. More than one gives the simultaneous topology and
-  needs one compute node each.
+- **X310 radios** — 0–4. Zero gives the NUC-only topology; more than one gives
+  the simultaneous topology and needs one compute node each.
 - **NUCs** — 1–4.
 - **Control node** — off by default.
 - **Install toggles** — SDR stack, srsRAN, ML stack.
