@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -ex
+set -e
 BINDIR=`dirname $0`
 
 sudo cp $BINDIR/default.script /etc/udhcpc/default.script
