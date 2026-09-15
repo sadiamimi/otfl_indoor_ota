@@ -268,9 +268,12 @@ pc.defineParameter(
 
 pc.defineParameter(
     name="multiplex_lans",
-    description="Multiplex experiment networks over physical interfaces using VLANs",
+    description="Multiplex experiment networks over physical interfaces using "
+                "VLANs. Leave off: multiplexing can place the experiment LAN on "
+                "the same port the X310 is cabled to, leaving the radio "
+                "unreachable.",
     typ=portal.ParameterType.BOOLEAN,
-    defaultValue=True,
+    defaultValue=False,
     advanced=True
 )
 
