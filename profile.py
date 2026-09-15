@@ -40,6 +40,8 @@ two arms:
 * **Digital arm** - srsRAN Project 5G gNodeB on the same X310, Open5GS core,
   and the COTS 5G modems on the same NUCs.
 
+The core network, RIC and Flower server share one radio-free control node.
+
 Neither radio stack is started automatically.
 """
 
@@ -175,33 +177,35 @@ pc.defineParameter(
 
 pc.defineParameter(
     name="include_cn",
-    description="Include the 5G core network node (needed for the digital arm)",
+    description="Include the control node: 5G core, and the RIC and Flower "
+                "server unless a separate control node is requested",
     typ=portal.ParameterType.BOOLEAN,
     defaultValue=True
 )
 
 pc.defineParameter(
     name="cn_nodetype",
-    description="Type of compute node to use for the CN node",
+    description="Type of compute node to use for the control node",
     typ=portal.ParameterType.STRING,
     defaultValue=node_types[0],          # d430
     legalValues=node_types
 )
 
 pc.defineParameter(
-    name="include_control_node",
-    description="Include a separate radio-free control node (RIC, Flower server, "
-                "orchestration). Keeps the control plane off the real-time SDR host.",
+    name="install_ric",
+    description="Install FlexRIC and the Flower server on the control node, "
+                "alongside the 5G core",
     typ=portal.ParameterType.BOOLEAN,
     defaultValue=False
 )
 
 pc.defineParameter(
-    name="control_nodetype",
-    description="Type of compute node to use for the control node",
-    typ=portal.ParameterType.STRING,
-    defaultValue=node_types[0],          # d430
-    legalValues=node_types
+    name="separate_control_node",
+    description="Put the RIC and Flower server on their own node instead of "
+                "sharing the core network node. Costs an extra server-class node.",
+    typ=portal.ParameterType.BOOLEAN,
+    defaultValue=False,
+    advanced=True
 )
 
 pc.defineParameter(
@@ -381,7 +385,7 @@ if len(params.x310_radios) == 0 and len(params.ue_nodes) == 0:
 d_nodes = len(params.x310_radios)
 if params.include_cn:
     d_nodes += 1
-if params.include_control_node:
+if params.include_cn and params.separate_control_node:
     d_nodes += 1
 
 if d_nodes == 0:
@@ -389,13 +393,18 @@ if d_nodes == 0:
         "NUC-only topology: no server-class nodes are requested. The B210s are "
         "available for the analog arm, but there is no X310 receiver and no 5G "
         "core.", ["x310_radios"]))
+elif params.install_ric and not params.include_cn:
+    pc.reportWarning(portal.ParameterWarning(
+        "The RIC was requested but no control node was included.",
+        ["install_ric"]))
 elif d_nodes > 2:
     pc.reportWarning(portal.ParameterWarning(
         "This topology needs {} server-class nodes ({} X310 compute"
         "{}{}). Confirm the reservation covers them.".format(
             d_nodes, len(params.x310_radios),
             " + CN" if params.include_cn else "",
-            " + control" if params.include_control_node else ""),
+            " + control" if (params.include_cn
+                                and params.separate_control_node) else ""),
         ["x310_radios"]))
 
 pc.verifyParameters()
@@ -503,18 +512,24 @@ if params.include_cn:
     cn_link.addInterface(cn_if)
     cn_node.addService(rspec.Execute(
         shell="bash", command=OPEN5GS_DEPLOY_SCRIPT))
+    # Per plan 5A.1 the control plane is one radio-free node: Open5GS plus
+    # the RIC and Flower server.
+    if params.install_ric and not params.separate_control_node:
+        cn_node.addService(rspec.Execute(
+            shell="bash", command=CONTROL_DEPLOY_SCRIPT))
 
 # Radio-free control node: RIC, Flower server, orchestration, results.
-if params.include_control_node:
+if params.include_cn and params.separate_control_node:
     ctrl_node = request.RawPC("ctrl")
     ctrl_node.component_manager_id = COMP_MANAGER_ID
-    ctrl_node.hardware_type = params.control_nodetype
+    ctrl_node.hardware_type = params.cn_nodetype
     ctrl_node.disk_image = UBUNTU_IMG
     ctrl_if = ctrl_node.addInterface("cn-if")
     ctrl_if.addAddress(rspec.IPv4Address(CTRL_IP, "255.255.255.0"))
     cn_link.addInterface(ctrl_if)
-    ctrl_node.addService(rspec.Execute(
-        shell="bash", command=CONTROL_DEPLOY_SCRIPT))
+    if params.install_ric:
+        ctrl_node.addService(rspec.Execute(
+            shell="bash", command=CONTROL_DEPLOY_SCRIPT))
 
 for idx, x310_radio in enumerate(params.x310_radios):
     x310_node_pair(idx, x310_radio.node_id)
