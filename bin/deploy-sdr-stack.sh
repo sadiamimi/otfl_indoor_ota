@@ -65,6 +65,21 @@ fi
 # B210 never enumerates ("Could not find the image 'usrp_b200_fw.hex'").
 sudo uhd_images_downloader || true
 
+# An X310 flashed for an older UHD fails with "RFNoC protocol mismatch between
+# SW and HW (SW: 2.0, HW: 1.0)". Reflashing writes the image but it only takes
+# effect after a power cycle, which the profile cannot perform -- so detect and
+# report rather than attempting it automatically.
+if command -v uhd_find_devices > /dev/null 2>&1; then
+    if timeout 40 uhd_find_devices 2>/dev/null | grep -q 'X310'; then
+        if timeout 60 python3 -c 'import uhd; uhd.usrp.MultiUSRP("type=x300")' 2>&1 \
+             | grep -q 'protocol mismatch'; then
+            echo "WARNING: X310 FPGA image predates the installed UHD."
+            echo "  Fix: sudo uhd_image_loader --args 'type=x300,fpga=XG'"
+            echo "  then power-cycle the X310 from the POWDER portal."
+        fi
+    fi
+fi
+
 # USB permissions for the B210.
 sudo cp "$(dirname "$(dirname "$(which uhd_find_devices)")")"/lib/uhd/utils/uhd-usrp.rules \
     /etc/udev/rules.d/ 2>/dev/null || \
@@ -74,6 +89,18 @@ sudo udevadm control --reload-rules && sudo udevadm trigger || true
 # Larger socket buffers and jumbo frames for the 10 GbE path to an X310.
 sudo sysctl -w net.core.wmem_max=25000000
 sudo sysctl -w net.core.rmem_max=25000000
+
+# UHD installs its Python bindings to site-packages, but Debian/Ubuntu's
+# python3 only searches dist-packages, so `import uhd` fails after a source
+# build. Expose it for every user.
+UHD_PY=$(find /usr/local/lib -maxdepth 3 -type d -path '*/site-packages/uhd' 2>/dev/null | head -1)
+if [ -n "$UHD_PY" ]; then
+    SITE_DIR=$(dirname "$UHD_PY")
+    echo "$SITE_DIR" | sudo tee /usr/lib/python3/dist-packages/uhd-source-build.pth > /dev/null
+    python3 -c 'import uhd' 2>/dev/null \
+        && echo "python3 -c 'import uhd' works" \
+        || echo "WARNING: uhd python bindings still not importable"
+fi
 
 # --- GNU Radio ---------------------------------------------------------
 # The Jammy package is 3.10.1.1, which matches the plan's requirement, so
