@@ -46,6 +46,28 @@ comparable to the baseline paper, and a B210 over USB3 cannot reliably sustain
 40 MHz. A 40 MHz digital-only config is staged alongside as
 `gnb_x310_n78_40mhz_e2.yml`.
 
+## Server-class ("d") node cost
+
+X310s and NUCs are bound to named components and do **not** draw from the
+general compute pool. Only X310-paired compute, the CN and the control node do.
+
+| Topology | d740 | d430 | Total |
+|---|---|---|---|
+| **NUCs only** (no X310, no CN) | 0 | 0 | **0** |
+| Minimal (1 X310, no CN) | 1 | 0 | **1** |
+| **Default** (1 X310, 4 NUCs, CN) | 1 | 1 | **2** |
+| + control node | 1 | 2 | **3** |
+| Simultaneous (2 X310s + control) | 2 | 2 | **4** |
+
+Four NUCs cost zero d-nodes, so compute is the binding constraint, not radios.
+
+**The NUC-only topology matters for sequencing.** Plan Tier 0 — the analog
+arm, the impairment sweep, the error decomposition, the whole week-14 preprint
+— needs no 5G stack and no X310-paired server. Set the X310 count to zero and
+`include_cn` off, and the experiment consumes no server-class nodes at all,
+which is the easiest thing to get scheduled. You lose the X310 receiver, so
+this is for B210-to-B210 work and NUC-local development, not full aggregation.
+
 ## Parameters
 
 - **`clock_source`** — `external` (Octoclock) or `internal`. Exposed, never
