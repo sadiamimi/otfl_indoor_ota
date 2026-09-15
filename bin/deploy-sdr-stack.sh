@@ -22,11 +22,15 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 
 sudo apt-get update
+# Protobuf and gRPC are required by UHD 4.11's MPM/RFNoC services: cmake
+# fails outright without them. DPDK is optional and left out.
 sudo apt-get install -y \
     build-essential cmake git pkg-config \
     libboost-all-dev libusb-1.0-0-dev python3-dev python3-pip \
     python3-mako python3-numpy python3-requests python3-ruamel.yaml \
-    python3-setuptools libudev-dev
+    python3-setuptools libudev-dev \
+    libprotobuf-dev protobuf-compiler \
+    libgrpc++-dev protobuf-compiler-grpc
 
 # --- UHD ---------------------------------------------------------------
 # Use the distro package if it is already >= 4.11 (saves ~15 min).
