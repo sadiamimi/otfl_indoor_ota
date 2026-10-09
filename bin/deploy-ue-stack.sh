@@ -40,6 +40,10 @@ if [ -d /sys/class/powercap/intel-rapl ]; then
     sudo chmod -R a+r /sys/class/powercap/intel-rapl || true
 fi
 
+# iperf3 for measuring the digital arm's uplink and downlink; the stock
+# srs-indoor-ota profile installs it on its UE nodes too.
+sudo apt-get install -y iperf3 || true
+
 # PTP for host-level burst timing. The RF timebase comes from the Octoclock,
 # not from this.
 sudo apt-get install -y linuxptp || true

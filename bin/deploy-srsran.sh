@@ -47,6 +47,13 @@ make -j"$(nproc)" gnb
 # `slicing` block). A pre-25.x config fails with "INI was not able to parse amf."
 sudo mkdir -p "$ETCDIR"
 
+# Each gNodeB compute node gets its own address on the experiment LAN
+# (192.168.1.2, .3, ... by position in the X310 list), so detect it rather
+# than assuming .2 -- otherwise srsRAN fails to bind NG-U on every node but
+# the first ("Failed to bind UDP socket to 192.168.1.2:2152").
+LAN_IP=$(ip -o -4 addr show | grep -oE '192\.168\.1\.[0-9]+' | grep -v '\.255$' | head -1)
+LAN_IP=${LAN_IP:-192.168.1.2}
+
 sudo tee "$ETCDIR/gnb_x310_n78_e2.yml" > /dev/null <<EOF
 # srsRAN Project gNodeB, POWDER Indoor OTA Lab, X310.
 # Schema: srsRAN 25.x.
@@ -57,7 +64,7 @@ cu_cp:
   amf:
     addr: 192.168.1.1
     port: 38412
-    bind_addr: 192.168.1.2
+    bind_addr: ${LAN_IP}
     supported_tracking_areas:
       - tac: 1
         plmn_list:
@@ -112,7 +119,7 @@ cell_cfg:
 e2:
   enable_du_e2: false
   addr: 192.168.1.10
-  bind_addr: 192.168.1.2
+  bind_addr: ${LAN_IP}
   port: 36421
   e2sm_kpm_enabled: true
   e2sm_rc_enabled: true
