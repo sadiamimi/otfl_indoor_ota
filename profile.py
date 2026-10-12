@@ -429,7 +429,8 @@ elif params.install_ric and not params.include_cn:
     pc.reportWarning(portal.ParameterWarning(
         "The RIC was requested but no control node was included.",
         ["install_ric"]))
-elif d_nodes > 2:
+elif d_nodes > 3:
+    # the default (two X310 compute nodes + CN) needs 3; warn only beyond it
     pc.reportWarning(portal.ParameterWarning(
         "This topology needs {} server-class nodes ({} X310 compute"
         "{}{}). Confirm the reservation covers them.".format(
