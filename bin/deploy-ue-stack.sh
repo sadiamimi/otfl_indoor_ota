@@ -20,12 +20,8 @@ fi
 
 export DEBIAN_FRONTEND=noninteractive
 
-if [ "$INSTALL_SDR" = "yes" ]; then
-    # Same source build as the SDR hosts: the packaged UHD is 4.1 and will not
-    # match an X310 flashed for 4.11.
-    /local/repository/bin/deploy-sdr-stack.sh "$CLOCK_SOURCE"
-fi
-
+# ML stack first: it settles the NumPy version (torch/flwr pull 2.x), and the
+# UHD build below must compile its Python bindings against that same NumPy.
 if [ "$INSTALL_ML" = "yes" ]; then
     sudo apt-get update
     sudo apt-get install -y python3-pip
@@ -33,6 +29,12 @@ if [ "$INSTALL_ML" = "yes" ]; then
     sudo pip3 install --no-cache-dir \
         --index-url https://download.pytorch.org/whl/cpu torch || true
     sudo pip3 install --no-cache-dir flwr numpy scipy || true
+fi
+
+if [ "$INSTALL_SDR" = "yes" ]; then
+    # Same source build as the SDR hosts: the packaged UHD is 4.1 and will not
+    # match an X310 flashed for 4.11.
+    /local/repository/bin/deploy-sdr-stack.sh "$CLOCK_SOURCE"
 fi
 
 # RAPL readable without root, for the energy accounting the plan needs.

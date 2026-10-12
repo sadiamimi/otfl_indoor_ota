@@ -15,8 +15,8 @@ Implements §5A of the research plan.
 | NUCs ×1–4 | `ota-nucN-ue` | UEs for **both** arms: B210 (analog) + COTS modem (digital) |
 | d430 | `cn5g` | Radio-free control node: Open5GS 5G core, plus FlexRIC and the Flower server when `install_ric` is set |
 
-Default is `ota-x310-2` — one of the two units with antennas on **both**
-channels. `ota-x310-1` and `-4` have Channel 0 antennas only; their second
+Default is `ota-x310-3` (analog aggregation receiver; antennas on **both**
+channels) plus `ota-x310-4` (digital sub-band cell). `ota-x310-1` and `-4` have Channel 0 antennas only; their second
 channel enumerates but is unantennaed, usable as a cabled phase reference.
 
 ## Frequency
@@ -97,7 +97,21 @@ aggregation.
 ## What gets installed
 
 **SDR nodes and NUCs:** UHD 4.11 (source), X310/B210 FPGA images, GNU Radio
-3.10, jumbo frames and socket tuning.
+3.10, and host tuning that survives reboots (`bin/tune-host.sh`):
+`otafl-tune.service` sets the performance governor, disables C-states and puts
+MTU 9000 on the X310 link at every boot; `/etc/sysctl.d/90-otafl.conf` holds
+32 MB socket buffers. (Settings applied once with `sysctl -w` were lost on a
+reboot, and long X310 captures then overflowed.)
+
+The Python stack is installed **before** the UHD build, so UHD's Python
+bindings compile against the NumPy actually imported. Built the other way
+round, NumPy 2 from pip meets bindings built for Jammy's NumPy 1.21 and every
+`import uhd` prints `_ARRAY_API not found`.
+
+**Bring-up check:** the last startup step on every radio node writes
+`/var/tmp/otafl-check.txt` (`bin/check-otafl.sh`), one OK / WARN line per item:
+UHD version and bindings, NumPy match, governor, buffers, MTU, the tuning unit,
+the experiment code on `/proj`, the radios, a stale X310 FPGA image.
 
 UHD is built from source deliberately. Jammy packages UHD 4.1, which **will
 not** talk to an X310 flashed for 4.11 — it fails with
@@ -115,6 +129,13 @@ and none is needed; E2 is gated at runtime from the config. The profile stages
 a config using the **25.x schema**, where AMF settings live under `cu_cp` and
 `supported_tracking_areas` replaces the bare `tac` (absorbing the old top-level
 `slicing` block). Pre-25.x configs fail with `INI was not able to parse amf.`
+
+Two configs are staged in `/var/tmp/etc/srsran/`:
+`gnb_x310_n78_e2.yml` (3450 MHz, the full band, sequential with the analog
+arm) and `gnb_x310_n78_dual_subband.yml` (3440.01 MHz, lower 20 MHz of the
+grant, LO offset −22 MHz, for running beside the analog arm at 3459.994725
+MHz). Host the sub-band cell on `ota-x310-4`; `ota-x310-2` hears the cell but
+never decodes msg3.
 
 **Control node:** FlexRIC, Flower server, analysis stack.
 

@@ -140,11 +140,103 @@ sudo sed -e 's/^  srate: 23.04/  srate: 46.08/' \
          "$ETCDIR/gnb_x310_n78_e2.yml" | \
     sudo tee "$ETCDIR/gnb_x310_n78_40mhz_e2.yml" > /dev/null
 
+# Digital sub-band cell for the hybrid analog/digital runs: the analog arm
+# (aggregation receiver on another X310) keeps the upper half of the grant at
+# 3459.994725 MHz while this cell takes the lower 20 MHz. Taken from
+# experiments/digital/gnb_dual_x4.yml (verified on ota-x310-4), with this
+# node's own LAN address. ota-x310-2 hears the cell but never decodes msg3, so
+# host this on ota-x310-4.
+sudo tee "$ETCDIR/gnb_x310_n78_dual_subband.yml" > /dev/null <<EOF
+# srsRAN Project gNodeB, digital sub-band (lower 20 MHz of 3430-3470 MHz).
+# Schema: srsRAN 25.x.
+
+gnb_id: 102
+
+cu_cp:
+  amf:
+    addr: 192.168.1.1
+    port: 38412
+    bind_addr: ${LAN_IP}
+    supported_tracking_areas:
+      - tac: 1
+        plmn_list:
+          - plmn: "99999"
+            tai_slice_support_list:
+              - sst: 1
+                sd: 1
+
+ru_sdr:
+  device_driver: uhd
+  device_args: type=x300,send_frame_size=4000,recv_frame_size=4000,num_recv_frames=256,num_send_frames=256
+  tx_gain: 31
+  rx_gain: 25
+  srate: 23.04
+  # LO at 3418 MHz: +22 would put the LO leakage inside the analog band
+  lo_offset: -22
+  clock: ${CLOCK_SOURCE}
+  sync: ${CLOCK_SOURCE}
+  time_alignment_calibration: 0
+
+cell_cfg:
+  # ARFCN 629334 = 3440.01 MHz, occupied 3430.83-3449.19 MHz; the analog arm
+  # occupies 3450.81-3469.18 MHz, 1.6 MHz away.
+  dl_arfcn: 629334
+  band: 78
+  channel_bandwidth_MHz: 20
+  common_scs: 30
+  nof_antennas_dl: 1
+  nof_antennas_ul: 1
+  plmn: "99999"
+  tac: 1
+  pci: 3
+  pdsch:
+    mcs_table: qam256
+    olla_target_bler: 0.1
+  pusch:
+    mcs_table: qam64
+    olla_target_bler: 0.1
+    olla_snr_inc_step: 0.01
+    olla_max_snr_offset: 10
+    dmrs_additional_position: 1
+  ssb:
+    ssb_period: 20
+  tdd_ul_dl_cfg:
+    dl_ul_tx_period: 10
+    nof_dl_slots: 5
+    nof_dl_symbols: 9
+    nof_ul_slots: 4
+    nof_ul_symbols: 0
+
+metrics:
+  enable_log: true
+  enable_json: true
+  layers:
+    enable_sched: true
+    enable_mac: true
+  periodicity:
+    du_report_period: 100
+
+remote_control:
+  enabled: true
+  bind_addr: 0.0.0.0
+  port: 8001
+
+log:
+  filename: /tmp/gnb.log
+  all_level: warning
+
+pcap:
+  mac_enable: false
+  ngap_enable: false
+EOF
+
 # Validate before declaring success, so a schema break surfaces at startup
 # rather than at the first experiment.
-"$SRCDIR/build/apps/gnb/gnb" -c "$ETCDIR/gnb_x310_n78_e2.yml" --dryrun \
-    && echo "gNodeB config validates." \
-    || echo "WARNING: gNodeB config failed validation."
+for cfg in gnb_x310_n78_e2.yml gnb_x310_n78_dual_subband.yml; do
+    "$SRCDIR/build/apps/gnb/gnb" -c "$ETCDIR/$cfg" --dryrun \
+        && echo "gNodeB config $cfg validates." \
+        || echo "WARNING: gNodeB config $cfg failed validation."
+done
 
 sudo touch "$STATUS"
 echo "srsRAN install complete."

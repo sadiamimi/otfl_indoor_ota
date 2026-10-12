@@ -64,6 +64,24 @@ uhd_find_devices          # B210
 ls /dev/ttyUSB*           # COTS modem
 ```
 
+#### 1b. Bring-up check
+
+Every radio node writes an OK / WARN list at the end of startup:
+
+```
+cat /var/tmp/otafl-check.txt
+```
+
+It covers UHD 4.11 and its Python bindings (and whether they match the
+installed NumPy), CPU governor, socket buffers, MTU 9000 on the X310 link,
+the boot-time tuning unit, the experiment code on `/proj`, the radios, and a
+stale X310 FPGA image (fix: `sudo uhd_image_loader --args 'type=x300,fpga=XG'`,
+then power-cycle the `-sdr` node from the portal).
+
+Experiment code and data live on the project share, which persists across
+experiments: `/proj/AIEdgeOSU/afrose4/otafl/{experiments,data}`. Update the
+code from the research repo with `experiments/deploy.sh <node>`.
+
 #### 2. Check the clock source
 
 ```
@@ -78,10 +96,17 @@ the measurement above rather than the sensor.
 
 Open5GS runs as a system service on the CN node (`systemctl status open5gs-*`).
 
-Start the gNodeB:
+Start the gNodeB (full band, sequential with the analog arm):
 
 ```
 sudo /var/tmp/srsRAN_Project/build/apps/gnb/gnb -c /var/tmp/etc/srsran/gnb_x310_n78_e2.yml
+```
+
+Or, for simultaneous analog + digital, the lower-20 MHz sub-band cell on
+ota-x310-4 (the analog arm keeps 3459.994725 MHz):
+
+```
+sudo /var/tmp/srsRAN_Project/build/apps/gnb/gnb -c /var/tmp/etc/srsran/gnb_x310_n78_dual_subband.yml
 ```
 
 Bring up a COTS UE on a NUC:
@@ -129,6 +154,8 @@ SRSRAN_DEPLOY_SCRIPT = os.path.join(BIN_PATH, "deploy-srsran.sh")
 SDR_DEPLOY_SCRIPT = os.path.join(BIN_PATH, "deploy-sdr-stack.sh")
 UE_DEPLOY_SCRIPT = os.path.join(BIN_PATH, "deploy-ue-stack.sh")
 CONTROL_DEPLOY_SCRIPT = os.path.join(BIN_PATH, "deploy-control.sh")
+TUNE_SCRIPT = os.path.join(BIN_PATH, "tune-host.sh")
+CHECK_SCRIPT = os.path.join(BIN_PATH, "check-otafl.sh")
 
 # Per-role IPv4 on the shared experiment LAN. The CN takes .1 so it matches
 # the address baked into the stock srsRAN/Open5GS configs.
@@ -282,10 +309,12 @@ pc.defineParameter(
 pc.defineStructParameter(
     name="x310_radios",
     description="X310 radios to allocate. The first is the primary gNodeB / "
-                "aggregation receiver. Prefer ota-x310-2 or -3: they have "
-                "antennas on both channels. Set to zero for a NUC-only "
-                "topology that consumes no server-class nodes.",
-    defaultValue=[{"node_id": "ota-x310-2"}],
+                "aggregation receiver. Default: ota-x310-3 (analog aggregation "
+                "receiver, antennas on both channels) and ota-x310-4 (digital "
+                "sub-band cell; ota-x310-2 cannot host srsRAN: msg3 never "
+                "decodes). Set to zero for a NUC-only topology that consumes no "
+                "server-class nodes.",
+    defaultValue=[{"node_id": "ota-x310-3"}, {"node_id": "ota-x310-4"}],
     multiValue=True,
     min=0,
     max=4,
@@ -458,10 +487,8 @@ def x310_node_pair(idx, x310_radio):
         "192.168.1.{}".format(GNB_IP_BASE + idx), "255.255.255.0"))
     cn_link.addInterface(cn_if)
 
-    node.addService(rspec.Execute(
-        shell="bash", command=os.path.join(BIN_PATH, "tune-cpu.sh")))
-    node.addService(rspec.Execute(
-        shell="bash", command=os.path.join(BIN_PATH, "tune-sdr-iface.sh")))
+    # Governor, C-states, X310 MTU and buffers, kept across reboots.
+    node.addService(rspec.Execute(shell="bash", command=TUNE_SCRIPT))
 
     if params.install_sdr_stack:
         node.addService(rspec.Execute(
@@ -474,6 +501,9 @@ def x310_node_pair(idx, x310_radio):
             shell="bash",
             command="{} '{}' '{}' '{}'".format(
                 SRSRAN_DEPLOY_SCRIPT, srsran_hash, params.clock_source, role)))
+
+    # Last: write /var/tmp/otafl-check.txt (OK / WARN per item).
+    node.addService(rspec.Execute(shell="bash", command=CHECK_SCRIPT))
 
     return node
 
@@ -496,6 +526,8 @@ def ue_node(idx, nuc_id):
         shell="bash", command=os.path.join(BIN_PATH, "module-off.sh")))
     node.addService(rspec.Execute(
         shell="bash", command=os.path.join(BIN_PATH, "update-udhcpc-script.sh")))
+    # The UE's post-beacon processing has ~2 ms of margin: no down-clocking.
+    node.addService(rspec.Execute(shell="bash", command=TUNE_SCRIPT))
     node.addService(rspec.Execute(
         shell="bash",
         command="{} '{}' '{}' '{}'".format(
@@ -503,6 +535,7 @@ def ue_node(idx, nuc_id):
             "yes" if params.install_sdr_stack else "no",
             "yes" if params.install_ml_stack else "no",
             params.clock_source)))
+    node.addService(rspec.Execute(shell="bash", command=CHECK_SCRIPT))
 
     return node
 

@@ -32,6 +32,13 @@ sudo apt-get install -y \
     libprotobuf-dev protobuf-compiler \
     libgrpc++-dev protobuf-compiler-grpc
 
+# --- Python for analysis ----------------------------------------------
+# Before the UHD build: UHD compiles its Python bindings against whatever NumPy
+# python3 imports at build time. Installing a newer NumPy afterwards (pip pulls
+# 2.x, Jammy ships 1.21) leaves bindings for the other major version, and every
+# `import uhd` prints "_ARRAY_API not found" (seen on the NUCs).
+sudo pip3 install --no-cache-dir numpy scipy matplotlib || true
+
 # --- UHD ---------------------------------------------------------------
 # Use the distro package if it is already >= 4.11 (saves ~15 min).
 INSTALLED_UHD=$(uhd_config_info --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
@@ -86,9 +93,8 @@ sudo cp "$(dirname "$(dirname "$(which uhd_find_devices)")")"/lib/uhd/utils/uhd-
     sudo find / -name 'uhd-usrp.rules' -exec cp {} /etc/udev/rules.d/ \; 2>/dev/null || true
 sudo udevadm control --reload-rules && sudo udevadm trigger || true
 
-# Larger socket buffers and jumbo frames for the 10 GbE path to an X310.
-sudo sysctl -w net.core.wmem_max=25000000
-sudo sysctl -w net.core.rmem_max=25000000
+# Socket buffers and jumbo frames for the 10 GbE path to an X310: persistent,
+# in bin/tune-host.sh (otafl-tune.service + /etc/sysctl.d).
 
 # UHD installs its Python bindings to site-packages, but Debian/Ubuntu's
 # python3 only searches dist-packages, so `import uhd` fails after a source
@@ -106,9 +112,6 @@ fi
 # The Jammy package is 3.10.1.1, which matches the plan's requirement, so
 # install it rather than spending an hour building it.
 sudo apt-get install -y gnuradio gnuradio-dev || true
-
-# --- Python for analysis ----------------------------------------------
-sudo pip3 install --no-cache-dir numpy scipy matplotlib || true
 
 echo "$CLOCK_SOURCE" | sudo tee /var/tmp/clock-source > /dev/null
 sudo touch "$STATUS"
