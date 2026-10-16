@@ -33,11 +33,12 @@ sudo apt-get install -y \
     libgrpc++-dev protobuf-compiler-grpc
 
 # --- Python for analysis ----------------------------------------------
-# Before the UHD build: UHD compiles its Python bindings against whatever NumPy
-# python3 imports at build time. Installing a newer NumPy afterwards (pip pulls
-# 2.x, Jammy ships 1.21) leaves bindings for the other major version, and every
-# `import uhd` prints "_ARRAY_API not found" (seen on the NUCs).
-sudo pip3 install --no-cache-dir numpy scipy matplotlib || true
+# NumPy stays 1.x. Jammy's python3-numpy (needed by the UHD build) puts NumPy
+# 1.21 headers on the default include path, so UHD's Python bindings compile
+# against 1.x even when pip has installed 2.x; with 2.x at run time every
+# `import uhd` prints "_ARRAY_API not found" and streaming into arrays can
+# crash (seen on all nodes, 2026-10-16). Bindings built on 1.21 run on 1.26.
+sudo pip3 install --no-cache-dir 'numpy<2' scipy matplotlib || true
 
 # --- UHD ---------------------------------------------------------------
 # Use the distro package if it is already >= 4.11 (saves ~15 min).

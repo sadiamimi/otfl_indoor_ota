@@ -17,7 +17,7 @@ sudo apt-get install -y \
     libsctp-dev lksctp-tools autoconf libtool bison flex \
     libpcre2-dev
 
-sudo pip3 install --no-cache-dir flwr numpy scipy pandas matplotlib || true
+sudo pip3 install --no-cache-dir flwr 'numpy<2' scipy pandas matplotlib || true
 
 # FlexRIC: near-RT RIC and xApp host. Built here rather than on the SDR node
 # so the control loop is decoupled from the radio.

@@ -20,15 +20,15 @@ fi
 
 export DEBIAN_FRONTEND=noninteractive
 
-# ML stack first: it settles the NumPy version (torch/flwr pull 2.x), and the
-# UHD build below must compile its Python bindings against that same NumPy.
+# ML stack first, NumPy pinned to 1.x (torch/flwr would pull 2.x; the UHD
+# bindings build against Jammy's NumPy 1.x headers, see deploy-sdr-stack.sh).
 if [ "$INSTALL_ML" = "yes" ]; then
     sudo apt-get update
     sudo apt-get install -y python3-pip
     # CPU-only torch: these nodes have no GPU, and the CUDA wheels are ~2 GB.
     sudo pip3 install --no-cache-dir \
         --index-url https://download.pytorch.org/whl/cpu torch || true
-    sudo pip3 install --no-cache-dir flwr numpy scipy || true
+    sudo pip3 install --no-cache-dir flwr 'numpy<2' scipy || true
 fi
 
 if [ "$INSTALL_SDR" = "yes" ]; then

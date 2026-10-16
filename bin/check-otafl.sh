@@ -10,7 +10,9 @@ OUT=/var/tmp/otafl-check.txt
 {
 echo "otafl bring-up check on $(hostname) at $(date -Is)"
 
-v=$(uhd_config_info --version 2>/dev/null | head -1)
+# the version the experiments use: the Python bindings (/usr/local), not the
+# apt uhd-host 4.1 that srsRAN's dependencies can put first on root's PATH
+v=$(python3 -c 'import uhd; print("UHD", uhd.get_version_string())' 2>/dev/null | tail -1)
 case "$v" in *4.11*) echo "OK   UHD $v" ;; *) echo "WARN UHD version '$v' (want 4.11)" ;; esac
 
 if python3 -c 'import uhd' > /dev/null 2>&1; then
