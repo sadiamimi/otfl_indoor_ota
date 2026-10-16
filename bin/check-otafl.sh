@@ -51,5 +51,6 @@ if echo "$devs" | grep -q 'X3'; then
         echo "OK   X310 opens"
     fi
 fi
+echo "INFO beacon margins need the gNB: after startup run GNB_HOST=<gNB host> experiments/b1/margin_check.sh (weakest UE gets the first sounding slot)"
 } 2>&1 | tee "$OUT"
 exit 0
